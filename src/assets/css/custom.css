@@ -1,0 +1,13 @@
+#root {
+  margin: 0 auto;
+  padding: 0rem;
+  width: 100%;
+}
+
+.mt-12 {
+  margin-top: 10rem;
+}
+.subscribe form button {
+  width: 100% !important;
+  padding: 0px !important;
+}
