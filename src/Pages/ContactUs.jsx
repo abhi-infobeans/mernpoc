@@ -26,7 +26,7 @@ function ContactUs(){
                 </div>
                 <div className="col-lg-6">
                     <div className="section-heading">
-                        <h2>Say Hello. Don't Be Shy!</h2>
+                        <h2>Hi</h2>
                         <span>Details to details is what makes Hexashop different from the other themes.</span>
                     </div>
                     <form id="contact" action="" method="post">
