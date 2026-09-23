@@ -38,8 +38,6 @@ function Login() {
     } else {
       alert("Invalid credentials");
     }
-
-    //alert(data.message);
   };
 
   return (
