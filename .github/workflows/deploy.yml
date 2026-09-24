@@ -1,0 +1,70 @@
+name: Deploy React + Node to EC2
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # React
+      - name: Install React dependencies
+        run: npm ci
+
+      - name: Build React
+        run: npm run build
+
+      # Node API
+      - name: Install API dependencies
+        working-directory: api
+        run: npm ci --omit=dev
+
+      # Package application
+      - name: Create deployment package
+        run: |
+          tar -czf deploy.tar.gz dist api
+
+      # Upload to EC2
+      - name: Copy files to EC2
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "deploy.tar.gz"
+          target: "/home/ec2-user/"
+
+      # Deploy on EC2
+      - name: Deploy application
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            mkdir -p /home/ec2-user/mernpoc
+
+            cd /home/ec2-user/mernpoc
+
+            tar -xzf /home/ec2-user/deploy.tar.gz
+
+            rm -f /home/ec2-user/deploy.tar.gz
+
+            cd /home/ec2-user/mernpoc/api
+
+            npm ci --omit=dev
+
+            pm2 restart server || pm2 start server.js --name server
+
+            pm2 save
