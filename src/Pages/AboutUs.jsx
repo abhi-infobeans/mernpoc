@@ -7,7 +7,7 @@ function AboutUs(){
             <div className="row">
                 <div className="col-lg-12">
                     <div className="inner-content">
-                        <h2>About Us</h2>
+                        <h2>About Us 12333</h2>
                     </div>
                 </div>
             </div>
