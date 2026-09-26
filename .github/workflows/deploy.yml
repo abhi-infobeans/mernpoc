@@ -10,6 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -17,25 +18,38 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
 
+      # =========================
       # React
+      # =========================
+
       - name: Install React dependencies
         run: npm ci
 
       - name: Build React
         run: npm run build
 
+      # =========================
       # Node API
+      # =========================
+
       - name: Install API dependencies
         working-directory: api
         run: npm ci --omit=dev
 
+      # =========================
       # Package application
+      # =========================
+
       - name: Create deployment package
         run: |
-          tar -czf deploy.tar.gz dist api
+          tar -czf deploy.tar.gz dist api docker-compose.yml
 
+      # =========================
       # Upload to EC2
+      # =========================
+
       - name: Copy files to EC2
         uses: appleboy/scp-action@v1
         with:
@@ -45,26 +59,66 @@ jobs:
           source: "deploy.tar.gz"
           target: "/home/ec2-user/"
 
+      # =========================
       # Deploy on EC2
+      # =========================
+
       - name: Deploy application
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
+
           script: |
+            set -e
+
+            echo "===== Create application directory ====="
+
             mkdir -p /home/ec2-user/mernpoc
 
             cd /home/ec2-user/mernpoc
+
+            echo "===== Extract deployment package ====="
 
             tar -xzf /home/ec2-user/deploy.tar.gz
 
             rm -f /home/ec2-user/deploy.tar.gz
 
+            echo "===== Start MySQL Docker ====="
+
+            docker compose up -d
+
+            echo "===== Check MySQL ====="
+
+            docker ps
+
+            echo "===== Install API dependencies ====="
+
             cd /home/ec2-user/mernpoc/api
 
             npm ci --omit=dev
 
-            pm2 restart server || pm2 start server.js --name server
+            echo "===== Restart Node API ====="
+
+            pm2 restart server || pm2 start Server.js --name server
 
             pm2 save
+
+            echo "===== Deploy React ====="
+
+            sudo mkdir -p /usr/share/nginx/html
+
+            sudo rm -rf /usr/share/nginx/html/*
+
+            sudo cp -r /home/ec2-user/mernpoc/dist/* /usr/share/nginx/html/
+
+            echo "===== Reload Nginx ====="
+
+            sudo systemctl reload nginx
+
+            echo "===== Deployment completed ====="
+
+            docker ps
+
+            pm2 status

@@ -23,7 +23,7 @@ function AboutUs(){
                 </div>
                 <div className="col-lg-6">
                     <div className="right-content">
-                        <h4>About Us &amp; Our Skills</h4>
+                        <h4>About Us 123 &amp; Our Skills</h4>
                         <span>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod kon tempor incididunt ut labore test.</span>
                         <div className="quote">
                             <i className="fa fa-quote-left"></i><p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiuski smod kon tempor incididunt ut labore.</p>
