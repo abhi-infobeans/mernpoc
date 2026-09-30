@@ -11,8 +11,16 @@ jobs:
 
     steps:
 
+      # =========================
+      # Checkout latest code
+      # =========================
+
       - name: Checkout code
         uses: actions/checkout@v4
+
+      # =========================
+      # Setup Node
+      # =========================
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -31,6 +39,29 @@ jobs:
         run: npm run build
 
       # =========================
+      # Verify React build
+      # =========================
+
+      - name: Verify React build
+        run: |
+          echo "===== React Build Verification ====="
+
+          echo "Checking for localhost API URL..."
+          if grep -R "localhost:5000" dist; then
+            echo "ERROR: localhost:5000 found in React build!"
+            exit 1
+          else
+            echo "SUCCESS: localhost:5000 not found."
+          fi
+
+          echo "Checking for EC2 API URL..."
+          if grep -R "13.201.186.161:5000" dist; then
+            echo "SUCCESS: EC2 API URL found in React build."
+          else
+            echo "WARNING: EC2 API URL not found in React build."
+          fi
+
+      # =========================
       # Node API
       # =========================
 
@@ -44,7 +75,11 @@ jobs:
 
       - name: Create deployment package
         run: |
+          echo "===== Creating deployment package ====="
           tar -czf deploy.tar.gz dist api docker-compose.yml
+
+          echo "===== Package created ====="
+          ls -lh deploy.tar.gz
 
       # =========================
       # Upload to EC2
@@ -73,25 +108,80 @@ jobs:
           script: |
             set -e
 
+            echo "======================================"
+            echo "Starting deployment"
+            echo "======================================"
+
+            # =========================
+            # Create application directory
+            # =========================
+
             echo "===== Create application directory ====="
 
             mkdir -p /home/ec2-user/mernpoc
 
-            cd /home/ec2-user/mernpoc
+            # =========================
+            # Remove old React build
+            # =========================
 
-            echo "===== Extract deployment package ====="
+            echo "===== Remove old React build ====="
 
-            tar -xzf /home/ec2-user/deploy.tar.gz
+            rm -rf /home/ec2-user/mernpoc/dist
+
+            # =========================
+            # Extract latest deployment
+            # =========================
+
+            echo "===== Extract latest deployment ====="
+
+            tar -xzf /home/ec2-user/deploy.tar.gz \
+              -C /home/ec2-user/mernpoc
 
             rm -f /home/ec2-user/deploy.tar.gz
 
+            echo "===== Deployment package extracted ====="
+
+            # =========================
+            # Verify React build
+            # =========================
+
+            echo "===== Verify React build ====="
+
+            echo "Checking for localhost:5000..."
+
+            if grep -R "localhost:5000" /home/ec2-user/mernpoc/dist; then
+              echo "ERROR: localhost:5000 found in deployed React build!"
+              exit 1
+            else
+              echo "SUCCESS: localhost:5000 not found."
+            fi
+
+            echo "Checking for EC2 API URL..."
+
+            grep -R "13.201.186.161:5000" \
+              /home/ec2-user/mernpoc/dist || true
+
+            # =========================
+            # Start MySQL Docker
+            # =========================
+
             echo "===== Start MySQL Docker ====="
+
+            cd /home/ec2-user/mernpoc
 
             docker compose up -d
 
-            echo "===== Check MySQL ====="
+            # =========================
+            # Check Docker
+            # =========================
+
+            echo "===== Check Docker ====="
 
             docker ps
+
+            # =========================
+            # Install API dependencies
+            # =========================
 
             echo "===== Install API dependencies ====="
 
@@ -99,26 +189,73 @@ jobs:
 
             npm ci --omit=dev
 
+            # =========================
+            # Restart Node API
+            # =========================
+
             echo "===== Restart Node API ====="
 
             pm2 restart server || pm2 start Server.js --name server
 
             pm2 save
 
-            echo "===== Deploy React ====="
+            # =========================
+            # Deploy React to Nginx
+            # =========================
+
+            echo "===== Deploy React to Nginx ====="
 
             sudo mkdir -p /usr/share/nginx/html
 
             sudo rm -rf /usr/share/nginx/html/*
 
-            sudo cp -r /home/ec2-user/mernpoc/dist/* /usr/share/nginx/html/
+            sudo cp -r /home/ec2-user/mernpoc/dist/* \
+              /usr/share/nginx/html/
+
+            # =========================
+            # Verify Nginx build
+            # =========================
+
+            echo "===== Verify Nginx React build ====="
+
+            echo "Checking for localhost:5000..."
+
+            if sudo grep -R "localhost:5000" /usr/share/nginx/html; then
+              echo "ERROR: localhost:5000 found in Nginx files!"
+              exit 1
+            else
+              echo "SUCCESS: localhost:5000 not found in Nginx files."
+            fi
+
+            echo "Checking deployed API URL..."
+
+            sudo grep -R "13.201.186.161:5000" \
+              /usr/share/nginx/html || true
+
+            # =========================
+            # Reload Nginx
+            # =========================
 
             echo "===== Reload Nginx ====="
 
             sudo systemctl reload nginx
 
-            echo "===== Deployment completed ====="
+            # =========================
+            # Final status
+            # =========================
+
+            echo "======================================"
+            echo "Deployment completed successfully"
+            echo "======================================"
+
+            echo "===== Docker ====="
 
             docker ps
 
+            echo "===== PM2 ====="
+
             pm2 status
+
+            echo "===== Node Port ====="
+
+            ss -lntp | grep 5000 || true
