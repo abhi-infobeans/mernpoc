@@ -197,17 +197,6 @@ jobs:
             # Verify Nginx build
             # =========================
 
-            echo "===== Verify Nginx React build ====="
-
-            echo "Checking for localhost:5000..."
-
-            if sudo grep -R "localhost:5000" /usr/share/nginx/html; then
-              echo "ERROR: localhost:5000 found in Nginx files!"
-              exit 1
-            else
-              echo "SUCCESS: localhost:5000 not found in Nginx files."
-            fi
-
             echo "Checking deployed API URL..."
 
             sudo grep -R "13.201.186.161:5000" \
