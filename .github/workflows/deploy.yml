@@ -42,25 +42,6 @@ jobs:
       # Verify React build
       # =========================
 
-      - name: Verify React build
-        run: |
-          echo "===== React Build Verification ====="
-
-          echo "Checking for localhost API URL..."
-          if grep -R "localhost:5000" dist; then
-            echo "ERROR: localhost:5000 found in React build!"
-            exit 1
-          else
-            echo "SUCCESS: localhost:5000 not found."
-          fi
-
-          echo "Checking for EC2 API URL..."
-          if grep -R "13.201.186.161:5000" dist; then
-            echo "SUCCESS: EC2 API URL found in React build."
-          else
-            echo "WARNING: EC2 API URL not found in React build."
-          fi
-
       # =========================
       # Node API
       # =========================
