@@ -11,8 +11,17 @@ jobs:
 
     steps:
 
+      # ==========================================
+      # CHECKOUT
+      # ==========================================
+
       - name: Checkout latest code
         uses: actions/checkout@v4
+
+
+      # ==========================================
+      # NODE SETUP
+      # ==========================================
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -20,25 +29,54 @@ jobs:
           node-version: 20
           cache: npm
 
-      # React
-      - name: Install React dependencies
+
+      # ==========================================
+      # FRONTEND BUILD
+      # ==========================================
+
+      - name: Install Frontend Dependencies
         run: npm ci
 
-      - name: Build React
+      - name: Build React Frontend
         run: npm run build
 
-      # Node API
-      - name: Install API dependencies
+
+      # ==========================================
+      # BACKEND BUILD / INSTALL
+      # ==========================================
+
+      - name: Install Backend Dependencies
         working-directory: api
         run: npm ci --omit=dev
 
-      # Package application
-      - name: Create deployment package
+      # If your api/package.json has a build script,
+      # uncomment the following step:
+      #
+      # - name: Build Node Backend
+      #   working-directory: api
+      #   run: npm run build
+
+
+      # ==========================================
+      # CREATE DEPLOYMENT PACKAGE
+      # ==========================================
+
+      - name: Create Deployment Package
         run: |
-          tar -czf deploy.tar.gz dist api docker-compose.yml
+          echo "Creating deployment package..."
+
+          tar -czf deploy.tar.gz \
+            dist \
+            api \
+            docker-compose.yml
+
           ls -lh deploy.tar.gz
 
-      # Upload to EC2
+
+      # ==========================================
+      # UPLOAD TO EC2
+      # ==========================================
+
       - name: Copy files to EC2
         uses: appleboy/scp-action@v1
         with:
@@ -48,7 +86,11 @@ jobs:
           source: "deploy.tar.gz"
           target: "/home/ec2-user/"
 
-      # Deploy on EC2
+
+      # ==========================================
+      # DEPLOY TO EC2
+      # ==========================================
+
       - name: Deploy application
         uses: appleboy/ssh-action@v1
         with:
@@ -57,46 +99,83 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
 
           script: |
+
             set -e
 
-            echo "===== Create application directory ====="
+            echo "======================================"
+            echo "Starting Deployment"
+            echo "======================================"
+
+
+            # ======================================
+            # CREATE APPLICATION DIRECTORY
+            # ======================================
+
+            echo "Creating application directory..."
 
             mkdir -p /home/ec2-user/mernpoc
 
-            echo "===== Remove old React build ====="
+
+            # ======================================
+            # REMOVE OLD FRONTEND BUILD
+            # ======================================
+
+            echo "Removing old React build..."
 
             rm -rf /home/ec2-user/mernpoc/dist
 
-            echo "===== Extract deployment package ====="
+
+            # ======================================
+            # EXTRACT NEW BUILD
+            # ======================================
+
+            echo "Extracting latest deployment..."
 
             tar -xzf /home/ec2-user/deploy.tar.gz \
               -C /home/ec2-user/mernpoc
 
             rm -f /home/ec2-user/deploy.tar.gz
 
-            echo "===== Start MySQL Docker ====="
+
+            # ======================================
+            # START MYSQL
+            # ======================================
+
+            echo "Starting MySQL Docker container..."
 
             cd /home/ec2-user/mernpoc
 
             docker compose up -d
 
-            echo "===== Check MySQL ====="
+
+            echo "Checking Docker containers..."
 
             docker ps
 
-            echo "===== Install API dependencies ====="
+
+            # ======================================
+            # BACKEND
+            # ======================================
+
+            echo "Installing backend dependencies..."
 
             cd /home/ec2-user/mernpoc/api
 
             npm ci --omit=dev
 
-            echo "===== Restart Node API ====="
+
+            echo "Restarting Node.js API..."
 
             pm2 restart server || pm2 start Server.js --name server
 
             pm2 save
 
-            echo "===== Deploy React ====="
+
+            # ======================================
+            # FRONTEND
+            # ======================================
+
+            echo "Deploying React frontend..."
 
             sudo mkdir -p /usr/share/nginx/html
 
@@ -105,20 +184,35 @@ jobs:
             sudo cp -r /home/ec2-user/mernpoc/dist/* \
               /usr/share/nginx/html/
 
-            echo "===== Reload Nginx ====="
+
+            # ======================================
+            # NGINX
+            # ======================================
+
+            echo "Reloading Nginx..."
 
             sudo systemctl reload nginx
 
-            echo "===== Deployment completed ====="
 
-            echo "===== Docker ====="
+            # ======================================
+            # STATUS
+            # ======================================
 
+            echo "======================================"
+            echo "Deployment completed successfully"
+            echo "======================================"
+
+            echo "Docker:"
             docker ps
 
-            echo "===== PM2 ====="
-
+            echo ""
+            echo "PM2:"
             pm2 status
 
-            echo "===== Node Port ====="
-
+            echo ""
+            echo "Node Port:"
             ss -lntp | grep 5000 || true
+
+            echo ""
+            echo "Nginx:"
+            sudo systemctl status nginx --no-pager
