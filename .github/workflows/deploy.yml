@@ -31,7 +31,7 @@ jobs:
 
 
       # ==========================================
-      # FRONTEND BUILD
+      # FRONTEND
       # ==========================================
 
       - name: Install Frontend Dependencies
@@ -42,19 +42,12 @@ jobs:
 
 
       # ==========================================
-      # BACKEND BUILD / INSTALL
+      # BACKEND
       # ==========================================
 
       - name: Install Backend Dependencies
         working-directory: api
         run: npm ci --omit=dev
-
-      # If your api/package.json has a build script,
-      # uncomment the following step:
-      #
-      # - name: Build Node Backend
-      #   working-directory: api
-      #   run: npm run build
 
 
       # ==========================================
@@ -74,7 +67,7 @@ jobs:
 
 
       # ==========================================
-      # UPLOAD TO EC2
+      # COPY TO EC2
       # ==========================================
 
       - name: Copy files to EC2
@@ -88,7 +81,7 @@ jobs:
 
 
       # ==========================================
-      # DEPLOY TO EC2
+      # DEPLOY
       # ==========================================
 
       - name: Deploy application
@@ -108,16 +101,14 @@ jobs:
 
 
             # ======================================
-            # CREATE APPLICATION DIRECTORY
+            # APPLICATION DIRECTORY
             # ======================================
-
-            echo "Creating application directory..."
 
             mkdir -p /home/ec2-user/mernpoc
 
 
             # ======================================
-            # REMOVE OLD FRONTEND BUILD
+            # REMOVE OLD BUILD
             # ======================================
 
             echo "Removing old React build..."
@@ -126,10 +117,10 @@ jobs:
 
 
             # ======================================
-            # EXTRACT NEW BUILD
+            # EXTRACT BUILD
             # ======================================
 
-            echo "Extracting latest deployment..."
+            echo "Extracting deployment package..."
 
             tar -xzf /home/ec2-user/deploy.tar.gz \
               -C /home/ec2-user/mernpoc
@@ -138,17 +129,14 @@ jobs:
 
 
             # ======================================
-            # START MYSQL
+            # MYSQL
             # ======================================
 
-            echo "Starting MySQL Docker container..."
+            echo "Starting MySQL..."
 
             cd /home/ec2-user/mernpoc
 
             docker compose up -d
-
-
-            echo "Checking Docker containers..."
 
             docker ps
 
@@ -164,7 +152,7 @@ jobs:
             npm ci --omit=dev
 
 
-            echo "Restarting Node.js API..."
+            echo "Restarting Node API..."
 
             pm2 restart server || pm2 start Server.js --name server
 
@@ -186,22 +174,54 @@ jobs:
 
 
             # ======================================
-            # NGINX
+            # NGINX REACT CONFIGURATION
+            # ======================================
+
+            echo "Configuring Nginx..."
+
+            sudo tee /etc/nginx/conf.d/react-app.conf > /dev/null <<'EOF'
+            server {
+                listen 80;
+                server_name _;
+
+                root /usr/share/nginx/html;
+                index index.html;
+
+                location / {
+                    try_files $uri $uri/ /index.html;
+                }
+            }
+            EOF
+
+
+            # ======================================
+            # NGINX TEST
+            # ======================================
+
+            echo "Testing Nginx configuration..."
+
+            sudo nginx -t
+
+
+            # ======================================
+            # RELOAD NGINX
             # ======================================
 
             echo "Reloading Nginx..."
 
+            sudo systemctl enable nginx
             sudo systemctl reload nginx
 
 
             # ======================================
-            # STATUS
+            # FINAL STATUS
             # ======================================
 
             echo "======================================"
             echo "Deployment completed successfully"
             echo "======================================"
 
+            echo ""
             echo "Docker:"
             docker ps
 
@@ -210,9 +230,9 @@ jobs:
             pm2 status
 
             echo ""
-            echo "Node Port:"
-            ss -lntp | grep 5000 || true
-
-            echo ""
             echo "Nginx:"
             sudo systemctl status nginx --no-pager
+
+            echo ""
+            echo "Ports:"
+            ss -lntp | grep -E ':80|:5000' || true
