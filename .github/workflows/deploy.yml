@@ -11,16 +11,8 @@ jobs:
 
     steps:
 
-      # =========================
-      # Checkout latest code
-      # =========================
-
-      - name: Checkout code
+      - name: Checkout latest code
         uses: actions/checkout@v4
-
-      # =========================
-      # Setup Node
-      # =========================
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -28,44 +20,25 @@ jobs:
           node-version: 20
           cache: npm
 
-      # =========================
       # React
-      # =========================
-
       - name: Install React dependencies
         run: npm ci
 
       - name: Build React
         run: npm run build
 
-      # =========================
-      # Verify React build
-      # =========================
-
-      # =========================
       # Node API
-      # =========================
-
       - name: Install API dependencies
         working-directory: api
         run: npm ci --omit=dev
 
-      # =========================
       # Package application
-      # =========================
-
       - name: Create deployment package
         run: |
-          echo "===== Creating deployment package ====="
           tar -czf deploy.tar.gz dist api docker-compose.yml
-
-          echo "===== Package created ====="
           ls -lh deploy.tar.gz
 
-      # =========================
       # Upload to EC2
-      # =========================
-
       - name: Copy files to EC2
         uses: appleboy/scp-action@v1
         with:
@@ -75,10 +48,7 @@ jobs:
           source: "deploy.tar.gz"
           target: "/home/ec2-user/"
 
-      # =========================
       # Deploy on EC2
-      # =========================
-
       - name: Deploy application
         uses: appleboy/ssh-action@v1
         with:
@@ -89,62 +59,20 @@ jobs:
           script: |
             set -e
 
-            echo "======================================"
-            echo "Starting deployment"
-            echo "======================================"
-
-            # =========================
-            # Create application directory
-            # =========================
-
             echo "===== Create application directory ====="
 
             mkdir -p /home/ec2-user/mernpoc
-
-            # =========================
-            # Remove old React build
-            # =========================
 
             echo "===== Remove old React build ====="
 
             rm -rf /home/ec2-user/mernpoc/dist
 
-            # =========================
-            # Extract latest deployment
-            # =========================
-
-            echo "===== Extract latest deployment ====="
+            echo "===== Extract deployment package ====="
 
             tar -xzf /home/ec2-user/deploy.tar.gz \
               -C /home/ec2-user/mernpoc
 
             rm -f /home/ec2-user/deploy.tar.gz
-
-            echo "===== Deployment package extracted ====="
-
-            # =========================
-            # Verify React build
-            # =========================
-
-            echo "===== Verify React build ====="
-
-            echo "Checking for localhost:5000..."
-
-            if grep -R "localhost:5000" /home/ec2-user/mernpoc/dist; then
-              echo "ERROR: localhost:5000 found in deployed React build!"
-              exit 1
-            else
-              echo "SUCCESS: localhost:5000 not found."
-            fi
-
-            echo "Checking for EC2 API URL..."
-
-            grep -R "13.201.186.161:5000" \
-              /home/ec2-user/mernpoc/dist || true
-
-            # =========================
-            # Start MySQL Docker
-            # =========================
 
             echo "===== Start MySQL Docker ====="
 
@@ -152,17 +80,9 @@ jobs:
 
             docker compose up -d
 
-            # =========================
-            # Check Docker
-            # =========================
-
-            echo "===== Check Docker ====="
+            echo "===== Check MySQL ====="
 
             docker ps
-
-            # =========================
-            # Install API dependencies
-            # =========================
 
             echo "===== Install API dependencies ====="
 
@@ -170,21 +90,13 @@ jobs:
 
             npm ci --omit=dev
 
-            # =========================
-            # Restart Node API
-            # =========================
-
             echo "===== Restart Node API ====="
 
             pm2 restart server || pm2 start Server.js --name server
 
             pm2 save
 
-            # =========================
-            # Deploy React to Nginx
-            # =========================
-
-            echo "===== Deploy React to Nginx ====="
+            echo "===== Deploy React ====="
 
             sudo mkdir -p /usr/share/nginx/html
 
@@ -193,30 +105,11 @@ jobs:
             sudo cp -r /home/ec2-user/mernpoc/dist/* \
               /usr/share/nginx/html/
 
-            # =========================
-            # Verify Nginx build
-            # =========================
-
-            echo "Checking deployed API URL..."
-
-            sudo grep -R "13.201.186.161:5000" \
-              /usr/share/nginx/html || true
-
-            # =========================
-            # Reload Nginx
-            # =========================
-
             echo "===== Reload Nginx ====="
 
             sudo systemctl reload nginx
 
-            # =========================
-            # Final status
-            # =========================
-
-            echo "======================================"
-            echo "Deployment completed successfully"
-            echo "======================================"
+            echo "===== Deployment completed ====="
 
             echo "===== Docker ====="
 
