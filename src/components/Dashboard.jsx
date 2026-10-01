@@ -121,7 +121,7 @@ function Dashboard() {
                                                 <td>{item.category}</td>
                                                 <td>
                                                     <img
-                                                        src={`http://localhost:5000/uploads/${item.image}`}
+                                                        src={`/api/uploads/${item.image}`}
                                                         width="80"
                                                         alt={item.name}
                                                         style={{ cursor: "pointer" }}

@@ -4,7 +4,6 @@ import { useNavigate, useParams } from "react-router-dom";
 function AddProduct() {
 
 
-    
     const navigate = useNavigate();
     const { id } = useParams();
     const isEdit = Boolean(id);
@@ -45,8 +44,8 @@ function AddProduct() {
         if (image) formData.append("image", image);
 
         const url = isEdit
-            ? `http://localhost:5000/product/${id}`
-            : "http://localhost:5000/addproduct";
+            ? `/api/product/${id}`
+            : "/api/addproduct";
         const method = isEdit ? "PUT" : "POST";
 
         const response = await fetch(url, {
@@ -70,7 +69,7 @@ function AddProduct() {
         if (isEdit) {
             const fetchProduct = async () => {
                 const token = localStorage.getItem("token");
-                const response = await fetch(`http://localhost:5000/product/${id}`, {
+                const response = await fetch(`/api/product/${id}`, {
                     headers: { "Authorization": `Bearer ${token}` }
                 });
                 const data = await response.json();
@@ -162,7 +161,7 @@ function AddProduct() {
                                         <label className="form-label">Current Image</label>
                                         <div>
                                             <img
-                                                src={`http://localhost:5000/uploads/${product.image}`}
+                                                src={`/api/uploads/${product.image}`}
                                                 width="100"
                                                 alt="existing"
                                             />

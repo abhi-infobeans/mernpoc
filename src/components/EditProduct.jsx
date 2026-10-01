@@ -21,7 +21,7 @@ function EditProduct() {
 
     const fetchProduct = async () => {
         const token = localStorage.getItem("token");
-        const response = await fetch(`http://localhost:5000/product/${id}`, {
+        const response = await fetch(`/api/product/${id}`, {
             headers: { "Authorization": `Bearer ${token}` }
         });
         const data = await response.json();
@@ -50,7 +50,7 @@ function EditProduct() {
         formData.append("description", product.description);
         if (image) formData.append("image", image);
 
-        const response = await fetch(`http://localhost:5000/product/${id}`, {
+        const response = await fetch(`/api/product/${id}`, {
             method: "PUT",
             headers: {
                 "Authorization": `Bearer ${token}`
