@@ -16,7 +16,7 @@ function Register() {
     };
     const handleSubmit = async (e) => {
         e.preventDefault();
-        const response = await fetch("http://13.201.186.161/register", {
+        const response = await fetch("/api/register", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(formData)
